@@ -38,30 +38,9 @@ def check_model_exists(model_path):
         return False
     
 def setup_environment():
-    # Check if required packages are installed, and install if necessary
-    packages = ["flask", "gdown"]
-    for package in packages:
-        if not is_package_installed(package):
-            print(f"{package} not found. Installing...")
-            install_package(package)
-        else:
-            print(f"{package} is already installed.")
 
-    # Clone the repository
-    repo_url = "https://github.com/vinthony/video-retalking.git"
     repo_dir = Path("video-retalking")
-    if not repo_dir.exists():
-        print(f"Cloning the repository from {repo_url}...")
-        subprocess.run(["git", "clone", repo_url], check=True)
     os.chdir(repo_dir)  # Change to the video-retalking directory
-
-    # Install necessary packages
-    subprocess.run([sys.executable, "-m", "pip", "install", "flask", "gdown"], check=True)
-    # subprocess.run(["apt-get", "update"], check=True)
-    # subprocess.run(["apt", "install", "ffmpeg", "-y"], check=True)
-
-    # Install the dependencies for video-retalking
-    subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"], check=True)
 
     # Create checkpoints directory
     checkpoints_dir = Path("checkpoints")
@@ -93,16 +72,3 @@ def setup_environment():
     # Unzip BFM.zip
     subprocess.run(["unzip", "-d", str(checkpoints_dir / "BFM"), str(checkpoints_dir / "BFM.zip")], check=True)
 
-def main():
-    """Main function to run the setup process."""
-    print("Starting the environment setup...")
-    try:
-        setup_environment()
-        print("Setup completed successfully!")
-    except subprocess.CalledProcessError as e:
-        print(f"An error occurred during setup: {e}")
-    except Exception as e:
-        print(f"Unexpected error: {e}")
-
-if __name__ == "__main__":
-    main()
