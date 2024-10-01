@@ -1,0 +1,17 @@
+version: '3.10'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu  # Change to Dockerfile.cpu if using CPU version
+    image: lip_sync_gpu_docker_api:latest
+    volumes:
+      - .:/app
+      - $HOME/.cache/pip:/root/.cache/pip  # Mount the pip cache
+    ports:
+      - "5000:5000"
+    environment:
+      FLASK_APP: app.py
+      FLASK_ENV: production
+    command: gunicorn --bind 0.0.0.0:5000 app:app
