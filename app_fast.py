@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Form
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import subprocess
@@ -8,6 +8,8 @@ from tqdm import tqdm
 import uvicorn
 from pydantic import BaseModel
 from model_setup import setup_environment
+from pathlib import Path
+from typing import Optional
 
 app = FastAPI()
 
@@ -22,7 +24,7 @@ app.add_middleware(
 
 setup_environment()
 
-output_path = '/lip_sync/outputs/output_lip_sync.mp4'
+output_path = Path('/lip_sync/outputs/output_lip_sync.mp4')
 
 # Pydantic BaseModel for request data validation 
 class LipSyncRequest(BaseModel):
@@ -39,22 +41,39 @@ def download_from_google_drive(url, output_path):
         print(f"File downloaded successfully to {output_path}")
     except Exception as e:
         print(f"Failed to download file from {url}. Error: {str(e)}")
+        
+async def form_or_json(
+    face_url: Optional[str] = Form(None),
+    audio_url: Optional[str] = Form(None),
+    request: LipSyncRequest = Depends()
+):
+    # Prioritize form data if provided, otherwise use JSON
+    if not face_url:
+        face_url = request.face_url
+    if not audio_url:
+        audio_url = request.audio_url
+
+    # Raise an error if either face_url or audio_url is missing
+    if not face_url or not audio_url:
+        raise HTTPException(status_code=400, detail="Both face_url and audio_url are required.")
+    
+    return {"face_url": face_url, "audio_url": audio_url}
 
 @app.post('/lip_sync')
-async def lip_sync(data: LipSyncRequest):
+async def lip_sync(data: LipSyncRequest = Depends(form_or_json)):
     try:
         face_url = data.face_url
         audio_url = data.audio_url
         pads = data.pads
         output_path = '/lip_sync/outputs/output_lip_sync.mp4'  # Default output path
 
-        face_path = '/lip_sync/data_from_user/videos/face_video.mp4'
-        audio_path = '/lip_sync/data_from_user/audios/audio.wav'
+        face_path = Path('/lip_sync/data_from_user/videos/face_video.mp4')
+        audio_path = Path('/lip_sync/data_from_user/audios/audio.wav')
 
         # Ensure directories exist
-        os.makedirs(os.path.dirname(face_path), exist_ok=True)
-        os.makedirs(os.path.dirname(audio_path), exist_ok=True)
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        face_path.parent.mkdir(parents=True, exist_ok=True)
+        audio_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Download the files from Google Drive with progress bar
         print("Downloading target video...")
@@ -81,7 +100,7 @@ async def lip_sync(data: LipSyncRequest):
 
         # If the command was successful, return the output path
         if result.returncode == 0:
-            return JSONResponse(content={'message': 'Processing completed successfully', 'output': output_path, 'logs': result.stdout}, status_code=200)
+            return JSONResponse(content={'message': 'Processing completed successfully', 'output': str(output_path), 'logs': result.stdout}, status_code=200)
 
     except subprocess.CalledProcessError as e:
         # Handle errors during command execution
@@ -94,14 +113,14 @@ async def lip_sync(data: LipSyncRequest):
 async def get_path_face_swap():
     try:
         # The path to the output video from the face swap
-        OUTPUT_VIDEO_PATH = '/lip_sync/outputs/output_lip_sync.mp4'
+        OUTPUT_VIDEO_PATH = Path('/lip_sync/outputs/output_lip_sync.mp4')
 
         # Check if the output file exists
-        if os.path.exists(OUTPUT_VIDEO_PATH):
+        if OUTPUT_VIDEO_PATH.exists():
             return JSONResponse(content={
                 'status': 'success',
                 'message': 'Output file path retrieved successfully',
-                'output_path': OUTPUT_VIDEO_PATH
+                'output_path': str(OUTPUT_VIDEO_PATH)
             })
         else:
             return JSONResponse(content={
